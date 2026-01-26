@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1220" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; upgrade-insecure-requests"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <title>Flappy Dog</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="app" aria-label="Flappy Dog game">
+      <canvas id="game" class="game" aria-label="Game canvas"></canvas>
+
+      <section class="hud" aria-live="polite">
+        <div class="hud__left">
+          <div class="pill" title="Score">
+            <span class="pill__label">Score</span>
+            <span id="score" class="pill__value">0</span>
+          </div>
+          <div class="pill pill--muted" title="Best score on this device">
+            <span class="pill__label">Best</span>
+            <span id="best" class="pill__value">0</span>
+          </div>
+        </div>
+        <div class="hud__right">
+          <button id="btnPause" class="btn" type="button" aria-label="Pause or resume">Pause</button>
+          <button id="btnRestart" class="btn btn--primary" type="button" aria-label="Restart">Restart</button>
+        </div>
+      </section>
+
+      <section id="panel" class="panel" role="dialog" aria-modal="false">
+        <div class="panel__card">
+          <h1 class="panel__title">Flappy Dog</h1>
+          <p class="panel__sub">Tap / click / press <kbd>Space</kbd> to flap. Avoid the towers. Collect vibes.</p>
+          <div class="panel__row">
+            <button id="btnStart" class="btn btn--primary btn--big" type="button">Start</button>
+            <button id="btnHow" class="btn btn--big" type="button">Controls</button>
+          </div>
+          <p id="how" class="panel__how" hidden>
+            <strong>Controls</strong><br />
+            - Flap: Tap / Click / Space / ↑ / W<br />
+            - Pause: P<br />
+            - Restart: R
+          </p>
+          <p class="panel__fineprint">No ads. No tracking. Runs fully offline after load.</p>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./game.js"></script>
+  </body>
+</html>
