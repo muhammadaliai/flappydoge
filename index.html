@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="Flappy Dog - A fun flying dog game">
+    <title>Flappy Dog 🐕</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        }
+
+        #gameContainer {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        #gameCanvas {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+                        0 0 40px rgba(79, 172, 254, 0.2);
+        }
+
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .overlay {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            color: white;
+            pointer-events: auto;
+            max-width: 90%;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .overlay h1 {
+            font-size: clamp(24px, 6vw, 48px);
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .overlay h2 {
+            font-size: clamp(18px, 4vw, 32px);
+            margin-bottom: 20px;
+            color: #4facfe;
+        }
+
+        .overlay p {
+            font-size: clamp(14px, 3vw, 18px);
+            margin-bottom: 15px;
+            color: #ccc;
+        }
+
+        .score-display {
+            font-size: clamp(28px, 8vw, 64px);
+            font-weight: bold;
+            color: #ffd700;
+            margin: 20px 0;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            border: none;
+            padding: 15px 40px;
+            font-size: clamp(16px, 4vw, 22px);
+            font-weight: bold;
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(79, 172, 254, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(79, 172, 254, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .high-score {
+            color: #f5576c;
+            font-size: clamp(14px, 3vw, 20px);
+            margin-top: 15px;
+        }
+
+        .instructions {
+            font-size: clamp(12px, 2.5vw, 16px);
+            color: #888;
+            margin-top: 20px;
+        }
+
+        #currentScore {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: clamp(32px, 8vw, 64px);
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5),
+                         0 0 20px rgba(255, 255, 255, 0.3);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="currentScore" class="hidden">0</div>
+        <div id="ui">
+            <div id="startScreen" class="overlay">
+                <h1>Flappy Dog</h1>
+                <h2>🐕 Flying Adventure</h2>
+                <p>Help the dog fly through the obstacles!</p>
+                <button class="btn" onclick="game.start()">Play</button>
+                <p class="instructions">Tap or Press Space to Flap</p>
+            </div>
+            <div id="gameOverScreen" class="overlay hidden">
+                <h1>Game Over</h1>
+                <p>Your Score</p>
+                <div class="score-display" id="finalScore">0</div>
+                <p class="high-score">Best: <span id="highScore">0</span></p>
+                <button class="btn" onclick="game.start()">Try Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Flappy Dog Game - Lightweight, Responsive, Modern
+        'use strict';
+
+        const game = {
+            canvas: null,
+            ctx: null,
+            width: 0,
+            height: 0,
+            scale: 1,
+            isRunning: false,
+            score: 0,
+            highScore: parseInt(localStorage.getItem('flappyDogHighScore')) || 0,
+            lastTime: 0,
+            accumulator: 0,
+            fixedDelta: 1000 / 60,
+
+            // Game objects
+            dog: null,
+            pipes: [],
+            particles: [],
+            clouds: [],
+            stars: [],
+
+            // Colors
+            colors: {
+                sky1: '#1a1a2e',
+                sky2: '#16213e',
+                sky3: '#0f3460',
+                ground: '#2d5a27',
+                groundDark: '#1e3d1a',
+                pipe: '#4ecca3',
+                pipeDark: '#3aa88a',
+                pipeHighlight: '#7fffd4',
+                dog: '#d4a574',
+                dogDark: '#b8956a',
+                dogLight: '#e8c49a'
+            },
+
+            init() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resize();
+                this.createStars();
+                this.createClouds();
+                this.bindEvents();
+                this.updateHighScoreDisplay();
+                this.render();
+            },
+
+            resize() {
+                const container = document.getElementById('gameContainer');
+                const containerWidth = container.clientWidth;
+                const containerHeight = container.clientHeight;
+                
+                // Base game dimensions (aspect ratio)
+                const baseWidth = 400;
+                const baseHeight = 600;
+                const aspectRatio = baseWidth / baseHeight;
+                
+                let width, height;
+                
+                if (containerWidth / containerHeight > aspectRatio) {
+                    height = Math.min(containerHeight * 0.95, 800);
+                    width = height * aspectRatio;
+                } else {
+                    width = Math.min(containerWidth * 0.95, 533);
+                    height = width / aspectRatio;
+                }
+                
+                this.width = Math.floor(width);
+                this.height = Math.floor(height);
+                this.scale = this.height / baseHeight;
+                
+                this.canvas.width = this.width;
+                this.canvas.height = this.height;
+                
+                // Recalculate game parameters
+                this.groundHeight = 80 * this.scale;
+                this.pipeWidth = 70 * this.scale;
+                this.pipeGap = 160 * this.scale;
+                this.pipeSpeed = 3 * this.scale;
+                this.gravity = 0.5 * this.scale;
+                this.jumpForce = -9 * this.scale;
+                this.dogSize = 40 * this.scale;
+            },
+
+            createStars() {
+                this.stars = [];
+                for (let i = 0; i < 50; i++) {
+                    this.stars.push({
+                        x: Math.random() * 400,
+                        y: Math.random() * 500,
+                        size: Math.random() * 2 + 1,
+                        twinkle: Math.random() * Math.PI * 2
+                    });
+                }
+            },
+
+            createClouds() {
+                this.clouds = [];
+                for (let i = 0; i < 5; i++) {
+                    this.clouds.push({
+                        x: Math.random() * 500,
+                        y: Math.random() * 200 + 50,
+                        width: Math.random() * 80 + 60,
+                        speed: Math.random() * 0.3 + 0.1
+                    });
+                }
+            },
+
+            bindEvents() {
+                // Touch/click events
+                const handleInput = (e) => {
+                    e.preventDefault();
+                    if (this.isRunning) {
+                        this.flap();
+                    }
+                };
+
+                this.canvas.addEventListener('touchstart', handleInput, { passive: false });
+                this.canvas.addEventListener('mousedown', handleInput);
+                
+                // Keyboard events
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' || e.key === ' ') {
+                        e.preventDefault();
+                        if (this.isRunning) {
+                            this.flap();
+                        }
+                    }
+                });
+
+                // Resize handler
+                window.addEventListener('resize', () => {
+                    this.resize();
+                    if (!this.isRunning) {
+                        this.render();
+                    }
+                });
+            },
+
+            start() {
+                document.getElementById('startScreen').classList.add('hidden');
+                document.getElementById('gameOverScreen').classList.add('hidden');
+                document.getElementById('currentScore').classList.remove('hidden');
+                
+                this.score = 0;
+                this.updateScoreDisplay();
+                this.pipes = [];
+                this.particles = [];
+                
+                this.dog = {
+                    x: this.width * 0.25,
+                    y: this.height * 0.4,
+                    velocity: 0,
+                    rotation: 0,
+                    wingAngle: 0
+                };
+                
+                this.isRunning = true;
+                this.lastTime = performance.now();
+                this.accumulator = 0;
+                requestAnimationFrame((t) => this.loop(t));
+            },
+
+            flap() {
+                if (this.dog) {
+                    this.dog.velocity = this.jumpForce;
+                    this.createFlapParticles();
+                }
+            },
+
+            createFlapParticles() {
+                for (let i = 0; i < 5; i++) {
+                    this.particles.push({
+                        x: this.dog.x,
+                        y: this.dog.y + this.dogSize / 2,
+                        vx: (Math.random() - 0.5) * 3 * this.scale,
+                        vy: Math.random() * 2 * this.scale,
+                        size: Math.random() * 4 + 2,
+                        life: 1,
+                        color: `hsl(${40 + Math.random() * 20}, 70%, 70%)`
+                    });
+                }
+            },
+
+            loop(currentTime) {
+                if (!this.isRunning) return;
+
+                const deltaTime = currentTime - this.lastTime;
+                this.lastTime = currentTime;
+                this.accumulator += deltaTime;
+
+                while (this.accumulator >= this.fixedDelta) {
+                    this.update();
+                    this.accumulator -= this.fixedDelta;
+                }
+
+                this.render();
+                requestAnimationFrame((t) => this.loop(t));
+            },
+
+            update() {
+                // Update dog physics
+                this.dog.velocity += this.gravity;
+                this.dog.y += this.dog.velocity;
+                this.dog.rotation = Math.max(-30, Math.min(90, this.dog.velocity * 3));
+                this.dog.wingAngle += 0.3;
+
+                // Update pipes
+                if (this.pipes.length === 0 || this.pipes[this.pipes.length - 1].x < this.width - 200 * this.scale) {
+                    this.spawnPipe();
+                }
+
+                for (let i = this.pipes.length - 1; i >= 0; i--) {
+                    const pipe = this.pipes[i];
+                    pipe.x -= this.pipeSpeed;
+
+                    // Score point
+                    if (!pipe.scored && pipe.x + this.pipeWidth < this.dog.x) {
+                        pipe.scored = true;
+                        this.score++;
+                        this.updateScoreDisplay();
+                    }
+
+                    // Remove off-screen pipes
+                    if (pipe.x + this.pipeWidth < 0) {
+                        this.pipes.splice(i, 1);
+                    }
+                }
+
+                // Update particles
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life -= 0.02;
+                    if (p.life <= 0) {
+                        this.particles.splice(i, 1);
+                    }
+                }
+
+                // Update clouds
+                this.clouds.forEach(cloud => {
+                    cloud.x -= cloud.speed * this.scale;
+                    if (cloud.x + cloud.width < 0) {
+                        cloud.x = 400 + Math.random() * 100;
+                        cloud.y = Math.random() * 200 + 50;
+                    }
+                });
+
+                // Update stars twinkle
+                this.stars.forEach(star => {
+                    star.twinkle += 0.05;
+                });
+
+                // Collision detection
+                this.checkCollision();
+            },
+
+            spawnPipe() {
+                const minY = 100 * this.scale;
+                const maxY = this.height - this.groundHeight - this.pipeGap - minY;
+                const gapY = Math.random() * maxY + minY;
+
+                this.pipes.push({
+                    x: this.width,
+                    gapY: gapY,
+                    scored: false
+                });
+            },
+
+            checkCollision() {
+                const dogLeft = this.dog.x - this.dogSize / 2;
+                const dogRight = this.dog.x + this.dogSize / 2;
+                const dogTop = this.dog.y - this.dogSize / 2;
+                const dogBottom = this.dog.y + this.dogSize / 2;
+
+                // Ground collision
+                if (dogBottom > this.height - this.groundHeight) {
+                    this.gameOver();
+                    return;
+                }
+
+                // Ceiling collision
+                if (dogTop < 0) {
+                    this.dog.y = this.dogSize / 2;
+                    this.dog.velocity = 0;
+                }
+
+                // Pipe collision
+                for (const pipe of this.pipes) {
+                    const pipeLeft = pipe.x;
+                    const pipeRight = pipe.x + this.pipeWidth;
+                    
+                    if (dogRight > pipeLeft && dogLeft < pipeRight) {
+                        // Check top pipe
+                        if (dogTop < pipe.gapY) {
+                            this.gameOver();
+                            return;
+                        }
+                        // Check bottom pipe
+                        if (dogBottom > pipe.gapY + this.pipeGap) {
+                            this.gameOver();
+                            return;
+                        }
+                    }
+                }
+            },
+
+            gameOver() {
+                this.isRunning = false;
+                document.getElementById('currentScore').classList.add('hidden');
+                
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('flappyDogHighScore', this.highScore);
+                }
+                
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('highScore').textContent = this.highScore;
+                document.getElementById('gameOverScreen').classList.remove('hidden');
+            },
+
+            updateScoreDisplay() {
+                document.getElementById('currentScore').textContent = this.score;
+            },
+
+            updateHighScoreDisplay() {
+                document.getElementById('highScore').textContent = this.highScore;
+            },
+
+            render() {
+                const ctx = this.ctx;
+                
+                // Clear and draw sky gradient
+                const gradient = ctx.createLinearGradient(0, 0, 0, this.height);
+                gradient.addColorStop(0, this.colors.sky1);
+                gradient.addColorStop(0.5, this.colors.sky2);
+                gradient.addColorStop(1, this.colors.sky3);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, this.width, this.height);
+
+                // Draw stars
+                this.stars.forEach(star => {
+                    const alpha = 0.5 + Math.sin(star.twinkle) * 0.5;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
+                    ctx.beginPath();
+                    ctx.arc(star.x * this.scale, star.y * this.scale, star.size * this.scale, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // Draw clouds
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                this.clouds.forEach(cloud => {
+                    this.drawCloud(cloud.x * this.scale, cloud.y * this.scale, cloud.width * this.scale);
+                });
+
+                // Draw pipes
+                this.pipes.forEach(pipe => {
+                    this.drawPipe(pipe);
+                });
+
+                // Draw particles
+                this.particles.forEach(p => {
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * this.scale, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.globalAlpha = 1;
+
+                // Draw dog
+                if (this.dog) {
+                    this.drawDog();
+                }
+
+                // Draw ground
+                this.drawGround();
+            },
+
+            drawCloud(x, y, width) {
+                const ctx = this.ctx;
+                const height = width * 0.4;
+                
+                ctx.beginPath();
+                ctx.ellipse(x, y, width / 2, height / 2, 0, 0, Math.PI * 2);
+                ctx.ellipse(x - width * 0.3, y + height * 0.2, width / 3, height / 2.5, 0, 0, Math.PI * 2);
+                ctx.ellipse(x + width * 0.3, y + height * 0.2, width / 3, height / 2.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+            },
+
+            drawPipe(pipe) {
+                const ctx = this.ctx;
+                const x = pipe.x;
+                const gapY = pipe.gapY;
+                const width = this.pipeWidth;
+                const capHeight = 25 * this.scale;
+                const capOverhang = 8 * this.scale;
+
+                // Top pipe
+                const topPipeGradient = ctx.createLinearGradient(x, 0, x + width, 0);
+                topPipeGradient.addColorStop(0, this.colors.pipeDark);
+                topPipeGradient.addColorStop(0.3, this.colors.pipe);
+                topPipeGradient.addColorStop(0.7, this.colors.pipeHighlight);
+                topPipeGradient.addColorStop(1, this.colors.pipeDark);
+
+                // Top pipe body
+                ctx.fillStyle = topPipeGradient;
+                ctx.fillRect(x, 0, width, gapY - capHeight);
+
+                // Top pipe cap
+                ctx.fillStyle = topPipeGradient;
+                this.roundRect(x - capOverhang, gapY - capHeight, width + capOverhang * 2, capHeight, 5 * this.scale);
+
+                // Bottom pipe
+                const bottomY = gapY + this.pipeGap;
+                
+                // Bottom pipe cap
+                this.roundRect(x - capOverhang, bottomY, width + capOverhang * 2, capHeight, 5 * this.scale);
+
+                // Bottom pipe body
+                ctx.fillRect(x, bottomY + capHeight, width, this.height - bottomY - capHeight - this.groundHeight);
+            },
+
+            roundRect(x, y, width, height, radius) {
+                const ctx = this.ctx;
+                ctx.beginPath();
+                ctx.moveTo(x + radius, y);
+                ctx.lineTo(x + width - radius, y);
+                ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+                ctx.lineTo(x + width, y + height - radius);
+                ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+                ctx.lineTo(x + radius, y + height);
+                ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+                ctx.lineTo(x, y + radius);
+                ctx.quadraticCurveTo(x, y, x + radius, y);
+                ctx.closePath();
+                ctx.fill();
+            },
+
+            drawDog() {
+                const ctx = this.ctx;
+                const x = this.dog.x;
+                const y = this.dog.y;
+                const size = this.dogSize;
+                const rotation = this.dog.rotation * Math.PI / 180;
+
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(rotation);
+
+                // Body
+                const bodyGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
+                bodyGradient.addColorStop(0, this.colors.dogLight);
+                bodyGradient.addColorStop(0.7, this.colors.dog);
+                bodyGradient.addColorStop(1, this.colors.dogDark);
+                
+                ctx.fillStyle = bodyGradient;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, size * 0.6, size * 0.45, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Head
+                ctx.fillStyle = this.colors.dog;
+                ctx.beginPath();
+                ctx.ellipse(size * 0.4, -size * 0.1, size * 0.35, size * 0.3, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Snout
+                ctx.fillStyle = this.colors.dogLight;
+                ctx.beginPath();
+                ctx.ellipse(size * 0.65, size * 0.05, size * 0.18, size * 0.12, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Nose
+                ctx.fillStyle = '#2c1810';
+                ctx.beginPath();
+                ctx.ellipse(size * 0.75, size * 0.02, size * 0.08, size * 0.06, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eye
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.ellipse(size * 0.45, -size * 0.15, size * 0.12, size * 0.1, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#2c1810';
+                ctx.beginPath();
+                ctx.arc(size * 0.48, -size * 0.15, size * 0.06, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eye shine
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(size * 0.5, -size * 0.18, size * 0.025, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Ears
+                ctx.fillStyle = this.colors.dogDark;
+                ctx.beginPath();
+                ctx.ellipse(size * 0.25, -size * 0.35, size * 0.15, size * 0.2, -0.3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.ellipse(size * 0.5, -size * 0.38, size * 0.12, size * 0.18, 0.2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Wings (animated)
+                const wingY = Math.sin(this.dog.wingAngle) * size * 0.15;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                
+                // Left wing
+                ctx.beginPath();
+                ctx.moveTo(-size * 0.2, 0);
+                ctx.quadraticCurveTo(-size * 0.5, -size * 0.3 + wingY, -size * 0.7, -size * 0.1 + wingY);
+                ctx.quadraticCurveTo(-size * 0.5, size * 0.1, -size * 0.2, 0);
+                ctx.fill();
+
+                // Wing details
+                ctx.strokeStyle = 'rgba(200, 200, 200, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(-size * 0.25, -size * 0.05);
+                ctx.quadraticCurveTo(-size * 0.45, -size * 0.2 + wingY, -size * 0.55, -size * 0.05 + wingY);
+                ctx.stroke();
+
+                // Tail
+                ctx.fillStyle = this.colors.dogDark;
+                const tailWag = Math.sin(this.dog.wingAngle * 2) * 0.3;
+                ctx.save();
+                ctx.translate(-size * 0.5, 0);
+                ctx.rotate(tailWag);
+                ctx.beginPath();
+                ctx.ellipse(-size * 0.15, 0, size * 0.2, size * 0.08, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                // Tongue (when falling)
+                if (this.dog.velocity > 2 * this.scale) {
+                    ctx.fillStyle = '#ff6b8a';
+                    ctx.beginPath();
+                    ctx.ellipse(size * 0.7, size * 0.15, size * 0.06, size * 0.1, 0.2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            },
+
+            drawGround() {
+                const ctx = this.ctx;
+                const y = this.height - this.groundHeight;
+
+                // Ground gradient
+                const groundGradient = ctx.createLinearGradient(0, y, 0, this.height);
+                groundGradient.addColorStop(0, this.colors.ground);
+                groundGradient.addColorStop(1, this.colors.groundDark);
+                
+                ctx.fillStyle = groundGradient;
+                ctx.fillRect(0, y, this.width, this.groundHeight);
+
+                // Ground line
+                ctx.strokeStyle = '#4a7c45';
+                ctx.lineWidth = 3 * this.scale;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(this.width, y);
+                ctx.stroke();
+
+                // Grass tufts
+                ctx.fillStyle = '#5a8c55';
+                for (let i = 0; i < this.width; i += 20 * this.scale) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, y);
+                    ctx.lineTo(i + 5 * this.scale, y - 8 * this.scale);
+                    ctx.lineTo(i + 10 * this.scale, y);
+                    ctx.fill();
+                }
+            }
+        };
+
+        // Initialize game when page loads
+        window.addEventListener('load', () => game.init());
+    </script>
+</body>
+</html>
