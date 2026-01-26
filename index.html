@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0b1220" />
+    <meta
+      name="description"
+      content="Flappy Doge — a lightweight, fast-loading Flappy Bird-style game in pure JavaScript."
+    />
+    <title>Flappy Doge</title>
+    <link rel="preload" href="./style.css" as="style" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar" aria-label="Game header">
+        <div class="brand">
+          <div class="brand__dot" aria-hidden="true"></div>
+          <div class="brand__text">
+            <div class="brand__title">Flappy Doge</div>
+            <div class="brand__sub">Tap / Space to flap</div>
+          </div>
+        </div>
+        <div class="stats" aria-label="Scores">
+          <div class="chip" title="Score">
+            <span class="chip__label">Score</span>
+            <span class="chip__value" id="scoreValue">0</span>
+          </div>
+          <div class="chip" title="Best score on this device">
+            <span class="chip__label">Best</span>
+            <span class="chip__value" id="bestValue">0</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="stage" aria-label="Game stage">
+        <canvas
+          id="game"
+          class="game"
+          aria-label="Flappy Doge canvas"
+          role="img"
+        ></canvas>
+
+        <div class="overlay" id="overlay" aria-live="polite">
+          <div class="card" id="overlayCard">
+            <div class="card__title" id="overlayTitle">Flappy Doge</div>
+            <div class="card__subtitle" id="overlaySubtitle">
+              Tap/click or press Space to flap. Avoid the pipes.
+            </div>
+            <div class="card__actions">
+              <button class="btn btn--primary" id="playBtn" type="button">
+                Play
+              </button>
+              <button class="btn" id="muteBtn" type="button" aria-pressed="false">
+                Sound: On
+              </button>
+            </div>
+            <div class="card__hint" id="overlayHint">
+              Tip: On mobile, tap anywhere to flap.
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="footer">
+        <div class="footer__left">
+          Built with pure JavaScript · No trackers · Loads fast
+        </div>
+        <div class="footer__right">
+          Controls: <kbd>Space</kbd> / <kbd>↑</kbd> / Tap
+        </div>
+      </footer>
+    </div>
+
+    <script src="./main.js" defer></script>
+  </body>
+</html>
