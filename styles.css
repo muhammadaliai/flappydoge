@@ -1,0 +1,309 @@
+:root {
+  --bg0: #070a12;
+  --bg1: #0b1020;
+  --card: rgba(255, 255, 255, 0.08);
+  --card2: rgba(255, 255, 255, 0.06);
+  --stroke: rgba(255, 255, 255, 0.16);
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.68);
+  --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  --radius: 18px;
+  --accent: #7c5cff;
+  --accent2: #25e6d7;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Helvetica,
+    Arial,
+    "Apple Color Emoji",
+    "Segoe UI Emoji";
+  color: var(--text);
+  background:
+    radial-gradient(1200px 700px at 20% 0%, rgba(124, 92, 255, 0.25), transparent 55%),
+    radial-gradient(1000px 600px at 90% 20%, rgba(37, 230, 215, 0.16), transparent 55%),
+    linear-gradient(180deg, var(--bg0), var(--bg1));
+  overflow: hidden;
+}
+
+.shell {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px 10px;
+  gap: 12px;
+}
+
+.brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+
+.logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background:
+    radial-gradient(12px 12px at 30% 35%, rgba(255, 255, 255, 0.6), transparent 60%),
+    linear-gradient(135deg, rgba(124, 92, 255, 1), rgba(37, 230, 215, 1));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  flex: 0 0 auto;
+}
+
+.brandText {
+  min-width: 0;
+}
+
+.title {
+  font-weight: 720;
+  letter-spacing: 0.2px;
+  font-size: 16px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subtitle {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+}
+
+.pillLabel {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.pillValue {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 740;
+}
+
+.iconBtn {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: var(--card2);
+  border: 1px solid var(--stroke);
+  color: var(--text);
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+  display: inline-grid;
+  place-items: center;
+}
+
+.iconBtn:focus-visible {
+  outline: 2px solid rgba(124, 92, 255, 0.9);
+  outline-offset: 3px;
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  background:
+    radial-gradient(circle at 38% 38%, rgba(255, 255, 255, 0.92) 0 24%, transparent 25%),
+    radial-gradient(circle at 70% 35%, rgba(255, 255, 255, 0.92) 0 24%, transparent 25%),
+    radial-gradient(circle at 52% 64%, rgba(255, 255, 255, 0.92) 0 18%, transparent 19%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.65));
+  mask:
+    radial-gradient(circle at 50% 50%, #000 0 99%, transparent 100%);
+  border-radius: 6px;
+  opacity: 0.92;
+}
+
+.stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 12px 14px 18px;
+  min-height: 0;
+}
+
+.canvas {
+  width: 100%;
+  max-width: 980px;
+  height: auto;
+  aspect-ratio: 10 / 7;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: var(--shadow);
+  touch-action: manipulation;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  pointer-events: none;
+}
+
+.card {
+  pointer-events: auto;
+  width: min(520px, 100%);
+  border-radius: 22px;
+  padding: 18px 18px 14px;
+  background: rgba(10, 14, 28, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
+}
+
+.cardTitle {
+  font-weight: 820;
+  font-size: 22px;
+  letter-spacing: 0.3px;
+}
+
+.cardText {
+  margin-top: 8px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.95em;
+  padding: 2px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.25);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+button.primary,
+button.secondary {
+  appearance: none;
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+button.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #0b1020;
+}
+
+button.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--text);
+}
+
+button.primary:focus-visible,
+button.secondary:focus-visible {
+  outline: 2px solid rgba(37, 230, 215, 0.9);
+  outline-offset: 3px;
+}
+
+.fineprint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.45;
+}
+
+.footer {
+  padding: 10px 14px 14px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  display: flex;
+  justify-content: center;
+  text-align: center;
+}
+
+@media (max-width: 420px) {
+  .pill {
+    padding: 8px 10px;
+    gap: 7px;
+  }
+  .pillValue {
+    font-size: 15px;
+  }
+  .iconBtn {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-height: 540px) {
+  .footer {
+    display: none;
+  }
+  .topbar {
+    padding-top: 10px;
+    padding-bottom: 8px;
+  }
+  .stage {
+    padding-bottom: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#0b1020" />
+    <title>Flappy Dog</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+        default-src 'self';
+        script-src 'self';
+        style-src 'self';
+        img-src 'self' data:;
+        base-uri 'none';
+        object-src 'none';
+        frame-ancestors 'none';
+        form-action 'none';
+        upgrade-insecure-requests;
+      "
+    />
+    <meta http-equiv="Referrer-Policy" content="no-referrer" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta name="description" content="A lightweight, modern Flappy Dog game—tap or press space to fly." />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar" aria-label="Game header">
+        <div class="brand">
+          <span class="logo" aria-hidden="true"></span>
+          <div class="brandText">
+            <div class="title">Flappy Dog</div>
+            <div class="subtitle">Tap / click / Space to fly</div>
+          </div>
+        </div>
+        <div class="hud" aria-label="Score">
+          <div class="pill">
+            <span class="pillLabel">Score</span>
+            <span id="score" class="pillValue">0</span>
+          </div>
+          <div class="pill">
+            <span class="pillLabel">Best</span>
+            <span id="best" class="pillValue">0</span>
+          </div>
+          <button id="mute" class="iconBtn" type="button" aria-pressed="false" aria-label="Toggle sound">
+            <span class="icon" aria-hidden="true"></span>
+          </button>
+        </div>
+      </header>
+
+      <section class="stage" aria-label="Game">
+        <canvas id="game" class="canvas" width="800" height="600" aria-label="Flappy Dog canvas"></canvas>
+        <div id="overlay" class="overlay" aria-live="polite">
+          <div class="card" role="group" aria-label="Game menu">
+            <div class="cardTitle">Flappy Dog</div>
+            <div id="message" class="cardText">
+              Press <kbd>Space</kbd> or tap to start.
+            </div>
+            <div class="actions">
+              <button id="start" class="primary" type="button">Start</button>
+              <button id="how" class="secondary" type="button">How to play</button>
+            </div>
+            <p class="fineprint" id="howText" hidden>
+              Avoid the pipes. Each gap passed = +1. On mobile, tap anywhere to flap.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <span>Made with vanilla JavaScript. No trackers. No external assets.</span>
+      </footer>
+    </main>
+
+    <script src="./game.js" defer></script>
+  </body>
+</html>
