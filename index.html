@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flappy Flying Dog</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+        background: #0b1226;
+        color: #e6edf6;
+      }
+
+      #game {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+      }
+
+      #hud {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        padding: clamp(14px, 3vw, 26px);
+        gap: 14px;
+      }
+
+      #scoreboard {
+        display: flex;
+        gap: 12px;
+      }
+
+      .score-card {
+        background: rgba(15, 22, 40, 0.65);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 10px 14px;
+        min-width: 92px;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 10px 24px rgba(9, 14, 28, 0.35);
+      }
+
+      .score-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(230, 237, 246, 0.6);
+      }
+
+      .score-value {
+        font-size: clamp(20px, 4vw, 28px);
+        font-weight: 700;
+      }
+
+      #message {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 20px;
+        transition: opacity 180ms ease, transform 180ms ease;
+      }
+
+      #message.hidden {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      #message .message-card {
+        background: rgba(15, 22, 40, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        padding: 16px 22px;
+        max-width: 520px;
+        font-size: clamp(18px, 4vw, 28px);
+        line-height: 1.4;
+        box-shadow: 0 18px 40px rgba(8, 12, 24, 0.45);
+      }
+
+      #footer {
+        margin-top: auto;
+        font-size: 12px;
+        color: rgba(230, 237, 246, 0.55);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="game" aria-label="Flappy flying dog game" role="img"></canvas>
+    <div id="hud" aria-live="polite">
+      <div id="scoreboard">
+        <div class="score-card">
+          <div class="score-label">Score</div>
+          <div id="score" class="score-value">0</div>
+        </div>
+        <div class="score-card">
+          <div class="score-label">Best</div>
+          <div id="best" class="score-value">0</div>
+        </div>
+      </div>
+      <div id="footer">Tap, click, or press Space or Up Arrow to flap.</div>
+    </div>
+    <div id="message">
+      <div class="message-card" id="messageText">
+        Tap or press Space to start. Guide the flying dog through the gaps!
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const canvas = document.getElementById("game");
+        const ctx = canvas.getContext("2d");
+        const scoreEl = document.getElementById("score");
+        const bestEl = document.getElementById("best");
+        const message = document.getElementById("message");
+        const messageText = document.getElementById("messageText");
+
+        const state = {
+          width: 0,
+          height: 0,
+          dpr: Math.min(window.devicePixelRatio || 1, 2),
+          running: false,
+          started: false,
+          gameOver: false,
+          lastTime: 0,
+          score: 0,
+          best: 0,
+          idleTime: 0,
+        };
+
+        const settings = {
+          gravity: 0,
+          flap: 0,
+          speed: 0,
+          pipeWidth: 0,
+          pipeGap: 0,
+          pipeSpacing: 0,
+          dogRadius: 0,
+          floorHeight: 0,
+        };
+
+        const dog = {
+          x: 0,
+          y: 0,
+          vy: 0,
+        };
+
+        let pipes = [];
+        let clouds = [];
+
+        const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+        const rand = (min, max) => min + Math.random() * (max - min);
+
+        const loadBest = () => {
+          try {
+            const stored = localStorage.getItem("flappyDogBest");
+            state.best = stored ? Number.parseInt(stored, 10) || 0 : 0;
+          } catch (error) {
+            state.best = 0;
+          }
+        };
+
+        const saveBest = () => {
+          try {
+            localStorage.setItem("flappyDogBest", String(state.best));
+          } catch (error) {
+            // ignore storage failures (private mode, etc.)
+          }
+        };
+
+        const resize = () => {
+          const rect = canvas.getBoundingClientRect();
+          state.width = rect.width;
+          state.height = rect.height;
+          state.dpr = Math.min(window.devicePixelRatio || 1, 2);
+          canvas.width = rect.width * state.dpr;
+          canvas.height = rect.height * state.dpr;
+          ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+
+          const minSide = Math.min(state.width, state.height);
+          settings.dogRadius = clamp(minSide * 0.036, 18, 34);
+          settings.pipeWidth = clamp(state.width * 0.11, 52, 100);
+          settings.pipeGap = clamp(state.height * 0.28, 150, 240);
+          settings.pipeSpacing = clamp(state.width * 0.52, 220, 320);
+          settings.floorHeight = clamp(state.height * 0.11, 54, 96);
+
+          const scale = minSide / 720;
+          settings.gravity = 2400 * scale;
+          settings.flap = -760 * scale;
+          settings.speed = 280 * scale;
+
+          dog.x = state.width * 0.22;
+          dog.y = state.height * 0.5;
+
+          clouds = Array.from({ length: Math.max(6, Math.round(state.width / 180)) }, () => ({
+            x: rand(0, state.width),
+            y: rand(30, state.height * 0.55),
+            r: rand(18, 46),
+            speed: rand(8, 20) * scale,
+            drift: rand(-4, 4),
+          }));
+        };
+
+        const createPipe = (x) => {
+          const gapCenter = rand(
+            80 + settings.pipeGap / 2,
+            state.height - settings.floorHeight - 80 - settings.pipeGap / 2
+          );
+          return {
+            x,
+            gapY: gapCenter,
+            passed: false,
+          };
+        };
+
+        const resetGame = () => {
+          pipes = [];
+          const startX = state.width + 80;
+          for (let i = 0; i < 3; i += 1) {
+            pipes.push(createPipe(startX + i * settings.pipeSpacing));
+          }
+          dog.y = state.height * 0.5;
+          dog.vy = settings.flap * 0.2;
+          state.score = 0;
+          state.running = true;
+          state.started = true;
+          state.gameOver = false;
+          updateScore();
+          updateMessage();
+        };
+
+        const endGame = () => {
+          state.running = false;
+          state.gameOver = true;
+          if (state.score > state.best) {
+            state.best = state.score;
+            saveBest();
+          }
+          updateScore();
+          updateMessage();
+        };
+
+        const handleAction = () => {
+          if (!state.started || state.gameOver) {
+            resetGame();
+            return;
+          }
+          if (!state.running) {
+            state.running = true;
+            updateMessage();
+            return;
+          }
+          dog.vy = settings.flap;
+        };
+
+        const updateScore = () => {
+          scoreEl.textContent = String(state.score);
+          bestEl.textContent = String(state.best);
+        };
+
+        const updateMessage = () => {
+          if (!state.started) {
+            messageText.textContent =
+              "Tap or press Space to start. Guide the flying dog through the gaps!";
+            message.classList.remove("hidden");
+            return;
+          }
+          if (state.gameOver) {
+            messageText.textContent = `Game over! Score ${state.score}. Tap to try again.`;
+            message.classList.remove("hidden");
+            return;
+          }
+          if (!state.running) {
+            messageText.textContent = "Paused. Tap to resume.";
+            message.classList.remove("hidden");
+            return;
+          }
+          message.classList.add("hidden");
+        };
+
+        const updateClouds = (dt) => {
+          const maxX = state.width + 120;
+          for (const cloud of clouds) {
+            cloud.x -= cloud.speed * dt;
+            cloud.y += cloud.drift * dt;
+            if (cloud.x < -120) {
+              cloud.x = maxX;
+              cloud.y = rand(30, state.height * 0.55);
+            }
+            if (cloud.y < 20 || cloud.y > state.height * 0.6) {
+              cloud.drift *= -1;
+            }
+          }
+        };
+
+        const update = (dt) => {
+          updateClouds(dt);
+
+          if (!state.running) {
+            state.idleTime += dt;
+            dog.y =
+              state.height * 0.5 + Math.sin(state.idleTime * 2) * settings.dogRadius * 0.25;
+            return;
+          }
+
+          dog.vy += settings.gravity * dt;
+          dog.y += dog.vy * dt;
+          dog.vy = Math.min(dog.vy, settings.gravity);
+
+          if (dog.y - settings.dogRadius < 0) {
+            dog.y = settings.dogRadius;
+            dog.vy = 0;
+          }
+
+          const floorY = state.height - settings.floorHeight;
+          if (dog.y + settings.dogRadius >= floorY) {
+            dog.y = floorY - settings.dogRadius;
+            endGame();
+          }
+
+          for (const pipe of pipes) {
+            pipe.x -= settings.speed * dt;
+
+            if (!pipe.passed && pipe.x + settings.pipeWidth < dog.x) {
+              pipe.passed = true;
+              state.score += 1;
+              updateScore();
+            }
+
+            const gapTop = pipe.gapY - settings.pipeGap / 2;
+            const gapBottom = pipe.gapY + settings.pipeGap / 2;
+
+            if (
+              dog.x + settings.dogRadius > pipe.x &&
+              dog.x - settings.dogRadius < pipe.x + settings.pipeWidth
+            ) {
+              if (dog.y - settings.dogRadius < gapTop || dog.y + settings.dogRadius > gapBottom) {
+                endGame();
+              }
+            }
+          }
+
+          pipes = pipes.filter((pipe) => pipe.x + settings.pipeWidth > -80);
+          const lastPipe = pipes[pipes.length - 1];
+          if (lastPipe && lastPipe.x < state.width - settings.pipeSpacing) {
+            pipes.push(createPipe(state.width + settings.pipeWidth));
+          }
+        };
+
+        const drawBackground = () => {
+          const gradient = ctx.createLinearGradient(0, 0, 0, state.height);
+          gradient.addColorStop(0, "#0b1026");
+          gradient.addColorStop(0.45, "#152a52");
+          gradient.addColorStop(1, "#1b3d6b");
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, state.width, state.height);
+
+          ctx.save();
+          ctx.globalAlpha = 0.12;
+          ctx.beginPath();
+          ctx.arc(state.width * 0.8, state.height * 0.2, state.width * 0.18, 0, Math.PI * 2);
+          ctx.fillStyle = "#ffe6b0";
+          ctx.fill();
+          ctx.restore();
+
+          ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
+          for (const cloud of clouds) {
+            ctx.beginPath();
+            ctx.arc(cloud.x, cloud.y, cloud.r, 0, Math.PI * 2);
+            ctx.arc(cloud.x + cloud.r * 0.9, cloud.y + cloud.r * 0.2, cloud.r * 0.8, 0, Math.PI * 2);
+            ctx.arc(cloud.x - cloud.r * 0.8, cloud.y + cloud.r * 0.2, cloud.r * 0.75, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        };
+
+        const drawPipeSegment = (x, y, h, isTop) => {
+          const w = settings.pipeWidth;
+          const gradient = ctx.createLinearGradient(x, 0, x + w, 0);
+          gradient.addColorStop(0, "#16a34a");
+          gradient.addColorStop(0.5, "#4ade80");
+          gradient.addColorStop(1, "#15803d");
+          ctx.fillStyle = gradient;
+          ctx.fillRect(x, y, w, h);
+
+          const capHeight = clamp(h * 0.16, 10, 18);
+          const capY = isTop ? y + h - capHeight : y;
+          ctx.fillStyle = "#22c55e";
+          ctx.fillRect(x - w * 0.05, capY, w * 1.1, capHeight);
+
+          ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+          ctx.fillRect(x + w * 0.12, y + capHeight * 0.6, w * 0.12, h - capHeight);
+        };
+
+        const drawPipes = () => {
+          for (const pipe of pipes) {
+            const gapTop = pipe.gapY - settings.pipeGap / 2;
+            const gapBottom = pipe.gapY + settings.pipeGap / 2;
+            drawPipeSegment(pipe.x, 0, gapTop, true);
+            drawPipeSegment(
+              pipe.x,
+              gapBottom,
+              state.height - settings.floorHeight - gapBottom,
+              false
+            );
+          }
+        };
+
+        const drawGround = (time) => {
+          const floorY = state.height - settings.floorHeight;
+          const floorGradient = ctx.createLinearGradient(0, floorY, 0, state.height);
+          floorGradient.addColorStop(0, "#0f172a");
+          floorGradient.addColorStop(1, "#0b111f");
+          ctx.fillStyle = floorGradient;
+          ctx.fillRect(0, floorY, state.width, settings.floorHeight);
+
+          ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+          const stripe = settings.floorHeight * 0.35;
+          const offset = ((time * settings.speed) / 6) % (stripe * 2);
+          for (let x = -stripe * 2; x < state.width + stripe * 2; x += stripe * 2) {
+            ctx.fillRect(x - offset, floorY + settings.floorHeight * 0.2, stripe, 6);
+          }
+        };
+
+        const drawDog = (time) => {
+          const r = settings.dogRadius;
+          const tilt = clamp(dog.vy / 900, -0.5, 0.8);
+          const wing = Math.sin(time * 0.01) * r * 0.2;
+
+          ctx.save();
+          ctx.translate(dog.x, dog.y);
+          ctx.rotate(tilt);
+          ctx.shadowColor = "rgba(10, 12, 18, 0.35)";
+          ctx.shadowBlur = r * 0.7;
+          ctx.shadowOffsetY = r * 0.2;
+
+          ctx.fillStyle = "#f6c17b";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * 1.15, r, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#fde6c4";
+          ctx.beginPath();
+          ctx.ellipse(r * 0.25, r * 0.2, r * 0.55, r * 0.45, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#f6c17b";
+          ctx.beginPath();
+          ctx.ellipse(r * 0.9, -r * 0.3, r * 0.6, r * 0.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#d59b5a";
+          ctx.beginPath();
+          ctx.ellipse(r * 0.95, -r * 0.8, r * 0.25, r * 0.45, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#f2b171";
+          ctx.beginPath();
+          ctx.ellipse(r * 1.28, -r * 0.2, r * 0.34, r * 0.26, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#1f2937";
+          ctx.beginPath();
+          ctx.arc(r * 0.92, -r * 0.35, r * 0.08, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#ffffff";
+          ctx.beginPath();
+          ctx.arc(r * 0.95, -r * 0.38, r * 0.03, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#2b1d1b";
+          ctx.beginPath();
+          ctx.arc(r * 1.4, -r * 0.2, r * 0.07, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.shadowColor = "transparent";
+          ctx.fillStyle = "#ffffff";
+          ctx.beginPath();
+          ctx.moveTo(-r * 0.15, -r * 0.1);
+          ctx.quadraticCurveTo(-r * 0.95, -r * 0.65 - wing, -r * 1.4, 0);
+          ctx.quadraticCurveTo(-r * 0.6, r * 0.4 + wing, -r * 0.05, r * 0.2);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.strokeStyle = "#d59b5a";
+          ctx.lineWidth = r * 0.16;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(-r * 1.05, -r * 0.1);
+          ctx.quadraticCurveTo(-r * 1.5, -r * 0.5, -r * 1.65, -r * 0.1);
+          ctx.stroke();
+
+          ctx.restore();
+        };
+
+        const render = (time) => {
+          drawBackground();
+          drawPipes();
+          drawDog(time);
+          drawGround(time);
+        };
+
+        const loop = (time) => {
+          const dt = Math.min((time - state.lastTime) / 1000, 0.033) || 0;
+          state.lastTime = time;
+          update(dt);
+          render(time);
+          requestAnimationFrame(loop);
+        };
+
+        window.addEventListener("resize", () => {
+          resize();
+          if (state.started && !state.running) {
+            updateMessage();
+          }
+        });
+
+        window.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          handleAction();
+        });
+
+        window.addEventListener("keydown", (event) => {
+          if (event.code === "Space" || event.code === "ArrowUp") {
+            event.preventDefault();
+            handleAction();
+          }
+        });
+
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden && state.running) {
+            state.running = false;
+            updateMessage();
+          }
+        });
+
+        loadBest();
+        resize();
+        updateScore();
+        updateMessage();
+        requestAnimationFrame(loop);
+      })();
+    </script>
+  </body>
+</html>
