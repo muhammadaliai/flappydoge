@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Flappy Dog</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main id="game-root">
+      <canvas id="game-canvas" role="img" aria-label="Flappy Dog game"></canvas>
+
+      <div class="hud" aria-live="polite">
+        <div class="chip">
+          Score:
+          <span id="score-value">0</span>
+        </div>
+        <div class="chip chip-muted">
+          Best:
+          <span id="best-value">0</span>
+        </div>
+      </div>
+
+      <div id="overlay" class="overlay">
+        <div class="panel">
+          <h1 id="overlay-title">Flappy Dog</h1>
+          <p id="overlay-message">
+            Tap, click, or press Space to flap.
+          </p>
+          <button id="start-button" class="primary" type="button">
+            Start
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <script src="script.js" defer></script>
+  </body>
+</html>
