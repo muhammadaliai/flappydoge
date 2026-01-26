@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80">
+  <!-- Body -->
+  <ellipse cx="50" cy="40" rx="35" ry="25" fill="#D2691E" />
+  <!-- Head -->
+  <circle cx="75" cy="30" r="20" fill="#D2691E" />
+  <!-- Ear -->
+  <path d="M75,15 Q65,5 60,20 Z" fill="#8B4513" />
+  <path d="M75,15 Q85,5 90,20 Z" fill="#8B4513" />
+  <!-- Eye -->
+  <circle cx="80" cy="25" r="3" fill="white" />
+  <circle cx="80" cy="25" r="1.5" fill="black" />
+  <!-- Nose -->
+  <circle cx="90" cy="30" r="3" fill="black" />
+  <!-- Cape (Flying Dog!) -->
+  <path d="M20,40 Q5,40 5,60 L25,50 Z" fill="#FF4500" />
+  <!-- Tail -->
+  <path d="M15,40 Q5,30 15,25" stroke="#D2691E" stroke-width="4" fill="none" />
+</svg>
