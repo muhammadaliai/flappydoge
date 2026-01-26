@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="Flappy Dog - A fun flying dog game">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline';">
+    <title>Flappy Dog</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        .game-container {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            aspect-ratio: 9/16;
+            max-height: 100vh;
+            background: linear-gradient(180deg, #87CEEB 0%, #98D8E8 30%, #B8E8D0 70%, #90EE90 100%);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 
+                        0 0 0 3px rgba(255, 255, 255, 0.1),
+                        inset 0 0 100px rgba(255, 255, 255, 0.1);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .title {
+            font-size: clamp(2rem, 8vw, 3.5rem);
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 3px 3px 0 #ff6b6b, 6px 6px 0 #4ecdc4;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            font-size: clamp(0.9rem, 3vw, 1.2rem);
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 40px;
+        }
+
+        .btn {
+            padding: 15px 50px;
+            font-size: clamp(1rem, 4vw, 1.3rem);
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 10px 30px rgba(238, 90, 90, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .btn:hover, .btn:active {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(238, 90, 90, 0.6);
+        }
+
+        .score-display {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: clamp(2rem, 10vw, 4rem);
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .game-over-content {
+            text-align: center;
+        }
+
+        .final-score {
+            font-size: clamp(1.5rem, 6vw, 2.5rem);
+            color: #4ecdc4;
+            margin-bottom: 10px;
+        }
+
+        .best-score {
+            font-size: clamp(1rem, 4vw, 1.3rem);
+            color: #ffd93d;
+            margin-bottom: 30px;
+        }
+
+        .instructions {
+            font-size: clamp(0.8rem, 2.5vw, 1rem);
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 30px;
+        }
+
+        @media (max-height: 600px) {
+            .game-container {
+                border-radius: 0;
+                max-height: 100vh;
+            }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .btn:hover {
+                transform: none;
+            }
+            .btn:active {
+                transform: scale(0.98);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div class="score-display" id="scoreDisplay">0</div>
+        
+        <div class="overlay" id="startScreen">
+            <h1 class="title">FLAPPY DOG</h1>
+            <p class="subtitle">Help the flying pup navigate!</p>
+            <button class="btn" id="startBtn">Play</button>
+            <p class="instructions">Tap or Press Space to Fly</p>
+        </div>
+
+        <div class="overlay hidden" id="gameOverScreen">
+            <div class="game-over-content">
+                <h1 class="title">GAME OVER</h1>
+                <p class="final-score">Score: <span id="finalScore">0</span></p>
+                <p class="best-score">Best: <span id="bestScore">0</span></p>
+                <button class="btn" id="restartBtn">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // Game Configuration
+            const CONFIG = {
+                gravity: 0.5,
+                jumpForce: -9,
+                pipeSpeed: 3,
+                pipeGap: 180,
+                pipeWidth: 70,
+                pipeSpacing: 220,
+                groundHeight: 80
+            };
+
+            // Canvas Setup
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const container = canvas.parentElement;
+
+            // Game State
+            let gameState = 'start';
+            let score = 0;
+            let bestScore = parseInt(localStorage.getItem('flappyDogBest') || '0', 10);
+            let animationId = null;
+            let lastTime = 0;
+
+            // Dog object
+            const dog = {
+                x: 0,
+                y: 0,
+                width: 50,
+                height: 40,
+                velocity: 0,
+                rotation: 0,
+                wingFrame: 0,
+                wingTimer: 0
+            };
+
+            // Pipes array
+            let pipes = [];
+
+            // Clouds for background
+            let clouds = [];
+
+            // Ground scroll position
+            let groundScroll = 0;
+
+            // Resize handler
+            function resizeCanvas() {
+                const rect = container.getBoundingClientRect();
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+                
+                // Update dog position on resize
+                dog.x = rect.width * 0.2;
+                if (gameState === 'start') {
+                    dog.y = rect.height / 2 - dog.height / 2;
+                }
+
+                // Adjust config based on screen size
+                CONFIG.pipeGap = Math.max(130, Math.min(180, rect.height * 0.22));
+                dog.width = Math.max(35, Math.min(50, rect.width * 0.12));
+                dog.height = dog.width * 0.8;
+            }
+
+            // Initialize clouds
+            function initClouds() {
+                clouds = [];
+                const rect = container.getBoundingClientRect();
+                for (let i = 0; i < 5; i++) {
+                    clouds.push({
+                        x: Math.random() * rect.width,
+                        y: Math.random() * rect.height * 0.5,
+                        width: 60 + Math.random() * 80,
+                        speed: 0.3 + Math.random() * 0.5,
+                        opacity: 0.3 + Math.random() * 0.4
+                    });
+                }
+            }
+
+            // Draw cloud
+            function drawCloud(cloud) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${cloud.opacity})`;
+                ctx.beginPath();
+                ctx.ellipse(cloud.x, cloud.y, cloud.width * 0.5, cloud.width * 0.25, 0, 0, Math.PI * 2);
+                ctx.ellipse(cloud.x - cloud.width * 0.3, cloud.y + 5, cloud.width * 0.3, cloud.width * 0.2, 0, 0, Math.PI * 2);
+                ctx.ellipse(cloud.x + cloud.width * 0.3, cloud.y + 5, cloud.width * 0.35, cloud.width * 0.22, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw the flying dog
+            function drawDog() {
+                const rect = container.getBoundingClientRect();
+                ctx.save();
+                ctx.translate(dog.x + dog.width / 2, dog.y + dog.height / 2);
+                
+                // Rotation based on velocity
+                const targetRotation = Math.min(Math.max(dog.velocity * 3, -30), 70);
+                dog.rotation += (targetRotation - dog.rotation) * 0.1;
+                ctx.rotate(dog.rotation * Math.PI / 180);
+
+                const w = dog.width;
+                const h = dog.height;
+
+                // Body (main oval)
+                const bodyGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, w * 0.5);
+                bodyGradient.addColorStop(0, '#D4A574');
+                bodyGradient.addColorStop(0.7, '#C4956A');
+                bodyGradient.addColorStop(1, '#A67B5B');
+                ctx.fillStyle = bodyGradient;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, w * 0.45, h * 0.4, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Belly (lighter patch)
+                ctx.fillStyle = '#E8D4C4';
+                ctx.beginPath();
+                ctx.ellipse(w * 0.05, h * 0.1, w * 0.25, h * 0.2, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Head
+                ctx.fillStyle = '#C4956A';
+                ctx.beginPath();
+                ctx.ellipse(w * 0.35, -h * 0.1, w * 0.28, h * 0.3, 0.2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Snout
+                ctx.fillStyle = '#D4A574';
+                ctx.beginPath();
+                ctx.ellipse(w * 0.52, h * 0.02, w * 0.15, h * 0.15, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Nose
+                ctx.fillStyle = '#3D2914';
+                ctx.beginPath();
+                ctx.ellipse(w * 0.6, 0, w * 0.06, h * 0.06, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eye
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.ellipse(w * 0.4, -h * 0.15, w * 0.1, h * 0.1, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Pupil
+                ctx.fillStyle = '#2D1810';
+                ctx.beginPath();
+                ctx.ellipse(w * 0.42, -h * 0.14, w * 0.05, h * 0.06, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eye shine
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.ellipse(w * 0.44, -h * 0.17, w * 0.02, h * 0.025, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Ears (floppy)
+                ctx.fillStyle = '#A67B5B';
+                ctx.beginPath();
+                ctx.ellipse(w * 0.25, -h * 0.35, w * 0.12, h * 0.18, -0.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(w * 0.42, -h * 0.35, w * 0.1, h * 0.16, 0.3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Wings (animated)
+                dog.wingTimer++;
+                if (dog.wingTimer > 6) {
+                    dog.wingTimer = 0;
+                    dog.wingFrame = (dog.wingFrame + 1) % 3;
+                }
+
+                const wingY = [-h * 0.25, -h * 0.35, -h * 0.3][dog.wingFrame];
+                const wingAngle = [0.3, -0.2, 0.1][dog.wingFrame];
+
+                // Wing shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                ctx.beginPath();
+                ctx.ellipse(-w * 0.1, wingY + 5, w * 0.35, h * 0.15, wingAngle, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Main wings
+                const wingGradient = ctx.createLinearGradient(-w * 0.3, wingY - h * 0.15, w * 0.1, wingY + h * 0.15);
+                wingGradient.addColorStop(0, '#F5E6D3');
+                wingGradient.addColorStop(1, '#E8D4C4');
+                ctx.fillStyle = wingGradient;
+                ctx.beginPath();
+                ctx.ellipse(-w * 0.1, wingY, w * 0.35, h * 0.15, wingAngle, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Wing feathers detail
+                ctx.strokeStyle = 'rgba(180, 150, 120, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(-w * 0.3, wingY);
+                ctx.lineTo(-w * 0.15, wingY);
+                ctx.moveTo(-w * 0.25, wingY + 5);
+                ctx.lineTo(-w * 0.1, wingY + 5);
+                ctx.stroke();
+
+                // Tail (wagging)
+                const tailWag = Math.sin(Date.now() * 0.015) * 0.3;
+                ctx.fillStyle = '#A67B5B';
+                ctx.beginPath();
+                ctx.ellipse(-w * 0.4, -h * 0.05, w * 0.15, h * 0.08, tailWag - 0.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Mouth (happy)
+                ctx.strokeStyle = '#3D2914';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(w * 0.5, h * 0.08, w * 0.08, 0.2, Math.PI - 0.2);
+                ctx.stroke();
+
+                // Tongue when falling
+                if (dog.velocity > 2) {
+                    ctx.fillStyle = '#FF6B6B';
+                    ctx.beginPath();
+                    ctx.ellipse(w * 0.52, h * 0.18, w * 0.05, h * 0.1, 0.1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+
+            // Draw pipe
+            function drawPipe(pipe) {
+                const rect = container.getBoundingClientRect();
+                const pipeWidth = CONFIG.pipeWidth;
+                const capHeight = 30;
+                const capExtra = 10;
+
+                // Top pipe
+                const topGradient = ctx.createLinearGradient(pipe.x, 0, pipe.x + pipeWidth, 0);
+                topGradient.addColorStop(0, '#48BB78');
+                topGradient.addColorStop(0.3, '#68D391');
+                topGradient.addColorStop(0.7, '#48BB78');
+                topGradient.addColorStop(1, '#2F855A');
+
+                ctx.fillStyle = topGradient;
+                ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight - capHeight);
+
+                // Top pipe cap
+                const capGradient = ctx.createLinearGradient(pipe.x - capExtra, 0, pipe.x + pipeWidth + capExtra, 0);
+                capGradient.addColorStop(0, '#38A169');
+                capGradient.addColorStop(0.3, '#68D391');
+                capGradient.addColorStop(0.7, '#48BB78');
+                capGradient.addColorStop(1, '#276749');
+
+                ctx.fillStyle = capGradient;
+                ctx.beginPath();
+                ctx.roundRect(pipe.x - capExtra, pipe.topHeight - capHeight, pipeWidth + capExtra * 2, capHeight, 5);
+                ctx.fill();
+
+                // Bottom pipe
+                const bottomY = pipe.topHeight + CONFIG.pipeGap;
+                ctx.fillStyle = topGradient;
+                ctx.fillRect(pipe.x, bottomY + capHeight, pipeWidth, rect.height - bottomY - capHeight - CONFIG.groundHeight);
+
+                // Bottom pipe cap
+                ctx.fillStyle = capGradient;
+                ctx.beginPath();
+                ctx.roundRect(pipe.x - capExtra, bottomY, pipeWidth + capExtra * 2, capHeight, 5);
+                ctx.fill();
+
+                // Pipe highlights
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.fillRect(pipe.x + 5, 0, 8, pipe.topHeight - capHeight);
+                ctx.fillRect(pipe.x + 5, bottomY + capHeight, 8, rect.height - bottomY - capHeight - CONFIG.groundHeight);
+            }
+
+            // Draw ground
+            function drawGround() {
+                const rect = container.getBoundingClientRect();
+                const groundY = rect.height - CONFIG.groundHeight;
+
+                // Ground base
+                const groundGradient = ctx.createLinearGradient(0, groundY, 0, rect.height);
+                groundGradient.addColorStop(0, '#8B7355');
+                groundGradient.addColorStop(0.3, '#7A6248');
+                groundGradient.addColorStop(1, '#5D4935');
+                ctx.fillStyle = groundGradient;
+                ctx.fillRect(0, groundY, rect.width, CONFIG.groundHeight);
+
+                // Grass on top
+                ctx.fillStyle = '#48BB78';
+                ctx.fillRect(0, groundY, rect.width, 15);
+
+                // Grass detail (moving)
+                ctx.fillStyle = '#68D391';
+                for (let i = -20; i < rect.width + 20; i += 15) {
+                    const x = (i - groundScroll % 15);
+                    ctx.beginPath();
+                    ctx.moveTo(x, groundY + 15);
+                    ctx.lineTo(x + 5, groundY);
+                    ctx.lineTo(x + 10, groundY + 15);
+                    ctx.fill();
+                }
+
+                // Ground texture lines
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+                ctx.lineWidth = 2;
+                for (let i = -40; i < rect.width + 40; i += 40) {
+                    const x = (i - groundScroll % 40);
+                    ctx.beginPath();
+                    ctx.moveTo(x, groundY + 30);
+                    ctx.lineTo(x + 20, groundY + 50);
+                    ctx.stroke();
+                }
+            }
+
+            // Draw background
+            function drawBackground() {
+                const rect = container.getBoundingClientRect();
+
+                // Sky gradient
+                const skyGradient = ctx.createLinearGradient(0, 0, 0, rect.height);
+                skyGradient.addColorStop(0, '#87CEEB');
+                skyGradient.addColorStop(0.4, '#98D8E8');
+                skyGradient.addColorStop(0.7, '#B8E8D0');
+                skyGradient.addColorStop(1, '#90EE90');
+                ctx.fillStyle = skyGradient;
+                ctx.fillRect(0, 0, rect.width, rect.height);
+
+                // Sun
+                const sunGradient = ctx.createRadialGradient(rect.width * 0.85, rect.height * 0.12, 0, rect.width * 0.85, rect.height * 0.12, 40);
+                sunGradient.addColorStop(0, 'rgba(255, 236, 179, 1)');
+                sunGradient.addColorStop(0.5, 'rgba(255, 236, 179, 0.6)');
+                sunGradient.addColorStop(1, 'rgba(255, 236, 179, 0)');
+                ctx.fillStyle = sunGradient;
+                ctx.beginPath();
+                ctx.arc(rect.width * 0.85, rect.height * 0.12, 40, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Update and draw clouds
+                clouds.forEach(cloud => {
+                    cloud.x -= cloud.speed;
+                    if (cloud.x + cloud.width < 0) {
+                        cloud.x = rect.width + cloud.width;
+                        cloud.y = Math.random() * rect.height * 0.4;
+                    }
+                    drawCloud(cloud);
+                });
+
+                // Distant hills
+                ctx.fillStyle = 'rgba(72, 187, 120, 0.3)';
+                ctx.beginPath();
+                ctx.moveTo(0, rect.height - CONFIG.groundHeight);
+                for (let x = 0; x <= rect.width; x += 50) {
+                    const y = rect.height - CONFIG.groundHeight - 20 - Math.sin(x * 0.02) * 30 - Math.sin(x * 0.01) * 20;
+                    ctx.lineTo(x, y);
+                }
+                ctx.lineTo(rect.width, rect.height - CONFIG.groundHeight);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Reset game
+            function resetGame() {
+                const rect = container.getBoundingClientRect();
+                dog.y = rect.height / 2 - dog.height / 2;
+                dog.velocity = 0;
+                dog.rotation = 0;
+                pipes = [];
+                score = 0;
+                groundScroll = 0;
+                updateScoreDisplay();
+            }
+
+            // Jump action
+            function jump() {
+                if (gameState === 'playing') {
+                    dog.velocity = CONFIG.jumpForce;
+                }
+            }
+
+            // Spawn pipe
+            function spawnPipe() {
+                const rect = container.getBoundingClientRect();
+                const minTop = 80;
+                const maxTop = rect.height - CONFIG.groundHeight - CONFIG.pipeGap - 80;
+                const topHeight = minTop + Math.random() * (maxTop - minTop);
+
+                pipes.push({
+                    x: rect.width,
+                    topHeight: topHeight,
+                    scored: false
+                });
+            }
+
+            // Check collision
+            function checkCollision() {
+                const rect = container.getBoundingClientRect();
+                const dogBox = {
+                    x: dog.x + dog.width * 0.15,
+                    y: dog.y + dog.height * 0.15,
+                    width: dog.width * 0.7,
+                    height: dog.height * 0.7
+                };
+
+                // Ground collision
+                if (dogBox.y + dogBox.height > rect.height - CONFIG.groundHeight) {
+                    return true;
+                }
+
+                // Ceiling collision
+                if (dogBox.y < 0) {
+                    return true;
+                }
+
+                // Pipe collision
+                for (const pipe of pipes) {
+                    const pipeBox = {
+                        x: pipe.x,
+                        width: CONFIG.pipeWidth
+                    };
+
+                    if (dogBox.x + dogBox.width > pipeBox.x && dogBox.x < pipeBox.x + pipeBox.width) {
+                        // Top pipe
+                        if (dogBox.y < pipe.topHeight) {
+                            return true;
+                        }
+                        // Bottom pipe
+                        if (dogBox.y + dogBox.height > pipe.topHeight + CONFIG.pipeGap) {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            // Update score display
+            function updateScoreDisplay() {
+                document.getElementById('scoreDisplay').textContent = score;
+            }
+
+            // Game loop
+            function gameLoop(timestamp) {
+                if (!lastTime) lastTime = timestamp;
+                const deltaTime = Math.min(timestamp - lastTime, 32);
+                lastTime = timestamp;
+
+                const rect = container.getBoundingClientRect();
+
+                // Clear canvas
+                ctx.clearRect(0, 0, rect.width, rect.height);
+
+                // Draw background
+                drawBackground();
+
+                if (gameState === 'playing') {
+                    // Update dog physics
+                    dog.velocity += CONFIG.gravity;
+                    dog.y += dog.velocity;
+
+                    // Update ground scroll
+                    groundScroll += CONFIG.pipeSpeed;
+
+                    // Spawn pipes
+                    if (pipes.length === 0 || pipes[pipes.length - 1].x < rect.width - CONFIG.pipeSpacing) {
+                        spawnPipe();
+                    }
+
+                    // Update pipes
+                    for (let i = pipes.length - 1; i >= 0; i--) {
+                        pipes[i].x -= CONFIG.pipeSpeed;
+
+                        // Score check
+                        if (!pipes[i].scored && pipes[i].x + CONFIG.pipeWidth < dog.x) {
+                            pipes[i].scored = true;
+                            score++;
+                            updateScoreDisplay();
+                        }
+
+                        // Remove off-screen pipes
+                        if (pipes[i].x + CONFIG.pipeWidth < 0) {
+                            pipes.splice(i, 1);
+                        }
+                    }
+
+                    // Check collision
+                    if (checkCollision()) {
+                        gameOver();
+                    }
+                }
+
+                // Draw pipes
+                pipes.forEach(drawPipe);
+
+                // Draw ground
+                drawGround();
+
+                // Draw dog
+                drawDog();
+
+                // Continue loop
+                animationId = requestAnimationFrame(gameLoop);
+            }
+
+            // Start game
+            function startGame() {
+                resetGame();
+                gameState = 'playing';
+                document.getElementById('startScreen').classList.add('hidden');
+                document.getElementById('gameOverScreen').classList.add('hidden');
+                document.getElementById('scoreDisplay').style.display = 'block';
+            }
+
+            // Game over
+            function gameOver() {
+                gameState = 'gameover';
+
+                // Update best score
+                if (score > bestScore) {
+                    bestScore = score;
+                    localStorage.setItem('flappyDogBest', bestScore.toString());
+                }
+
+                document.getElementById('finalScore').textContent = score;
+                document.getElementById('bestScore').textContent = bestScore;
+                document.getElementById('gameOverScreen').classList.remove('hidden');
+            }
+
+            // Event Listeners
+            document.getElementById('startBtn').addEventListener('click', startGame);
+            document.getElementById('restartBtn').addEventListener('click', startGame);
+
+            // Keyboard controls
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' || e.key === ' ') {
+                    e.preventDefault();
+                    if (gameState === 'start') {
+                        startGame();
+                    } else if (gameState === 'playing') {
+                        jump();
+                    } else if (gameState === 'gameover') {
+                        startGame();
+                    }
+                }
+            });
+
+            // Touch/click controls on canvas
+            canvas.addEventListener('click', () => {
+                if (gameState === 'playing') {
+                    jump();
+                }
+            });
+
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (gameState === 'playing') {
+                    jump();
+                }
+            }, { passive: false });
+
+            // Handle resize
+            window.addEventListener('resize', resizeCanvas);
+
+            // Prevent context menu on long press
+            canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            // Initialize
+            resizeCanvas();
+            initClouds();
+            document.getElementById('bestScore').textContent = bestScore;
+            animationId = requestAnimationFrame(gameLoop);
+        })();
+    </script>
+</body>
+</html>
