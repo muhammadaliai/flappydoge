@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flappy Dog</title>
+    <meta name="description" content="A lightweight, fast, and responsive Flappy Dog game.">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui-layer">
+            <div id="start-screen" class="screen">
+                <h1>Flappy Dog</h1>
+                <p>Tap or Space to Fly</p>
+                <button id="start-btn">Play</button>
+            </div>
+            <div id="game-over-screen" class="screen hidden">
+                <h2>Game Over</h2>
+                <p>Score: <span id="score-display">0</span></p>
+                <p>Best: <span id="best-score-display">0</span></p>
+                <button id="restart-btn">Try Again</button>
+            </div>
+            <div id="score-hud" class="hidden">0</div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
